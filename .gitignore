@@ -10,3 +10,5 @@ __pycache__/
 
 # Outros
 .vscode/
+data.json
+treino.json
