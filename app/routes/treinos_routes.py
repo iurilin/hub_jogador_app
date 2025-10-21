@@ -20,11 +20,20 @@ def adicionar_treino(current_user):
 
 
 @treinos_bp.route('/treinos', methods=['GET'])
-def listar_treinos():
+@token_required
+def listar_treinos(current_user):
     lista_de_treinos = []
-    for treino in treinos_collection.find({}):
+
+    treinos_do_usuario = treinos_collection.find({'usuario_id': current_user['_id']})
+    
+    for treino in treinos_do_usuario:
         treino['_id'] = str(treino['_id'])
+
+        if 'usuario_id' in treino:
+            treino['usuario_id'] = str(treino['usuario_id'])
+        
         lista_de_treinos.append(treino)
+        
     return jsonify(lista_de_treinos), 200
 
 

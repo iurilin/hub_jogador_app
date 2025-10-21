@@ -3,7 +3,16 @@ import bcrypt
 import jwt
 import os
 from datetime import datetime, timedelta
+from app.auth import token_required
 from app.database import usuarios_collection
+from werkzeug.utils import secure_filename
+import time
+from flask import Blueprint, request, jsonify, current_app
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 usuarios_bp = Blueprint('usuarios', __name__)
 
@@ -56,3 +65,110 @@ def login_usuario():
         return jsonify({'token': token})
 
     return jsonify({'erro': 'Credenciais inválidas'}), 401
+
+@usuarios_bp.route('/usuario/perfil', methods=['GET'])
+@token_required
+def get_user_profile(current_user):
+    if current_user:
+        current_user['_id'] = str(current_user['_id']) 
+
+        current_user.pop('senha_hash', None) 
+        
+        return jsonify(current_user), 200
+    else:
+        return jsonify({"erro": "Usuário não encontrado"}), 404
+    
+@usuarios_bp.route('/usuario/perfil', methods=['PUT'])
+@token_required
+def update_user_profile(current_user):
+    try:
+        dados_novos = request.get_json()
+
+        if not dados_novos:
+            return jsonify({"erro": "Nenhum dado enviado para atualização"}), 400
+
+        campos_permitidos = ['nome', 'email', 'posicao']
+
+        update_data = {}
+        for campo in campos_permitidos:
+            if campo in dados_novos:
+                update_data[campo] = dados_novos[campo]
+
+        if not update_data:
+             return jsonify({"erro": "Nenhum campo válido enviado para atualização"}), 400
+
+        if 'email' in update_data and update_data['email'] != current_user.get('email'):
+            if usuarios_collection.find_one({'email': update_data['email']}):
+                return jsonify({'erro': 'Este email já está sendo usado por outra conta'}), 409
+        resultado = usuarios_collection.update_one(
+            {'_id': current_user['_id']},
+            {'$set': update_data}
+        )
+
+        if resultado.modified_count == 1:
+            usuario_atualizado = usuarios_collection.find_one({'_id': current_user['_id']})
+            if usuario_atualizado:
+                 usuario_atualizado['_id'] = str(usuario_atualizado['_id'])
+                 usuario_atualizado.pop('senha_hash', None)
+                 return jsonify(usuario_atualizado), 200
+            else:
+                 return jsonify({"erro": "Usuário não encontrado após atualização"}), 404
+        elif resultado.matched_count == 1:
+             current_user['_id'] = str(current_user['_id'])
+             current_user.pop('senha_hash', None)
+             return jsonify(current_user), 200 
+        else:
+            return jsonify({"erro": "Usuário não encontrado"}), 404
+
+    except Exception as e:
+        print(f"Erro ao atualizar perfil: {e}")
+        return jsonify({"erro": "Ocorreu um erro interno ao atualizar o perfil"}), 500
+    
+@usuarios_bp.route('/usuario/perfil/foto', methods=['POST'])
+@token_required
+def upload_profile_picture(current_user):
+    if 'photo' not in request.files:
+        return jsonify({"erro": "Nenhum arquivo de foto enviado"}), 400
+    
+    file = request.files['photo']
+
+    if file.filename == '':
+        return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
+
+    if file and allowed_file(file.filename):
+        filename_base, file_extension = os.path.splitext(file.filename)
+        unique_filename = secure_filename(f"{str(current_user['_id'])}_{int(time.time())}{file_extension}")
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+        
+        try:
+            file.save(filepath)
+
+            foto_url = f"/uploads/profile_pics/{unique_filename}" 
+
+            usuarios_collection.update_one(
+                {'_id': current_user['_id']},
+                {'$set': {'foto': foto_url}}
+            )
+
+            usuario_atualizado = usuarios_collection.find_one({'_id': current_user['_id']})
+            if usuario_atualizado:
+                 usuario_atualizado['_id'] = str(usuario_atualizado['_id'])
+                 usuario_atualizado.pop('senha_hash', None)
+                 usuario_atualizado['foto'] = foto_url 
+                 return jsonify(usuario_atualizado), 200
+            else:
+                 return jsonify({"erro": "Usuário não encontrado após upload"}), 404
+
+        except Exception as e:
+            print(f"Erro ao salvar arquivo: {e}")
+            return jsonify({"erro": "Falha ao salvar a foto"}), 500
+            
+    else:
+        return jsonify({"erro": "Tipo de arquivo não permitido"}), 400
+
+
+from flask import send_from_directory
+
+@usuarios_bp.route('/uploads/profile_pics/<filename>')
+def serve_profile_picture(filename):
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)

@@ -11,7 +11,28 @@ jogos_bp = Blueprint('jogos', __name__)
 @token_required
 def adicionar_jogo(current_user):
     dados = request.get_json()
-    if not dados or 'minutos_jogados' not in dados or 'intensidade' not in dados or 'adversário' not in dados or 'gols' not in dados or 'assistências' not in dados or 'dificuldade' not in dados or 'resultado' not in dados or 'campeonato' not in dados or 'local' not in dados or 'posicao' not in dados or 'chutes' not in dados or 'desarmes' not in dados or 'faltas_cometidas' not in dados or 'faltas_sofridas' not in dados or 'cartao' not in dados or 'desempenho' not in dados or 'data_hora' not in dados or 'chutes_defendidos' not in dados or 'penaltis_defendidos':    
+    if not dados or 'tempo_jogado' not in dados or \
+   'intensidade' not in dados or \
+   'adversario' not in dados or \
+   'gols' not in dados or \
+   'assistencias' not in dados or \
+   'dificuldade' not in dados or \
+   'resultado' not in dados or \
+   'campeonato' not in dados or \
+   'local' not in dados or \
+   'posicao' not in dados or \
+   'chutes' not in dados or \
+   'desarmes' not in dados or \
+   'faltas_cometidas' not in dados or \
+   'faltas_sofridas' not in dados or \
+   'cartao' not in dados or \
+   'desempenho' not in dados or \
+   'data_hora' not in dados or \
+   'defesas' not in dados or \
+   'defesas_dificeis' not in dados or \
+   'gols_sofridos' not in dados or \
+   'minutos_sem_sofrer_gol' not in dados or \
+   'penaltis_defendidos' not in dados:  
         return jsonify({"erro": "Dados incompletos"}), 400
     dados['usuario_id'] = current_user['_id']
     dados['data_registro'] = datetime.datetime.now()
@@ -20,11 +41,23 @@ def adicionar_jogo(current_user):
 
 
 @jogos_bp.route('/jogos', methods=['GET'])
-def listar_jogos():
+@token_required # 2. PROTEJA A ROTA
+def listar_jogos(current_user): # 3. RECEBA O USUÁRIO LOGADO
     lista_de_jogos = []
-    for jogo in jogos_collection.find({}):
+    
+    # 4. FILTRE A BUSCA PELO USUÁRIO LOGADO
+    jogos_do_usuario = jogos_collection.find({'usuario_id': current_user['_id']})
+    
+    for jogo in jogos_do_usuario:
+        # Converte o _id (que sempre existe)
         jogo['_id'] = str(jogo['_id'])
+        
+        # 5. (Opcional, mas seguro) Verifica se 'usuario_id' existe antes de converter
+        if 'usuario_id' in jogo:
+            jogo['usuario_id'] = str(jogo['usuario_id'])
+        
         lista_de_jogos.append(jogo)
+        
     return jsonify(lista_de_jogos), 200
 
 
@@ -34,7 +67,28 @@ def atualizar_jogo(current_user, id):
     try:
         dados_novos = request.get_json()
 
-        if not dados_novos or 'minutos_jogados' not in dados_novos or 'intensidade' not in dados_novos or 'adversário' not in dados_novos or 'gols' not in dados_novos or 'assistências' not in dados_novos or 'dificuldade' not in dados_novos or 'resultado' not in dados_novos or 'campeonato' not in dados_novos or 'local' not in dados_novos or 'posicao' not in dados_novos or 'chutes' not in dados_novos or 'desarmes' not in dados_novos or 'faltas_cometidas' not in dados_novos or 'faltas_sofridas' not in dados_novos or 'cartao' not in dados_novos or 'desempenho' not in dados_novos or 'data_hora' not in dados_novos or 'chutes_defendidos' not in dados_novos or 'penaltis_defendidos':
+        if not dados_novos or 'tempo_jogado' not in dados_novos or \
+        'intensidade' not in dados_novos or \
+        'adversario' not in dados_novos or \
+        'gols' not in dados_novos or \
+        'assistencias' not in dados_novos or \
+        'dificuldade' not in dados_novos or \
+        'resultado' not in dados_novos or \
+        'campeonato' not in dados_novos or \
+        'local' not in dados_novos or \
+        'posicao' not in dados_novos or \
+        'chutes' not in dados_novos or \
+        'desarmes' not in dados_novos or \
+        'faltas_cometidas' not in dados_novos or \
+        'faltas_sofridas' not in dados_novos or \
+        'cartao' not in dados_novos or \
+        'desempenho' not in dados_novos or \
+        'data_hora' not in dados_novos or \
+        'defesas' not in dados_novos or \
+        'defesas_dificeis' not in dados_novos or \
+        'gols_sofridos' not in dados_novos or \
+        'minutos_sem_sofrer_gol' not in dados_novos or \
+        'penaltis_defendidos' not in dados_novos:
              return jsonify({"erro": "Dados incompletos"}), 400
 
         dados_novos['data_atualizacao'] = datetime.datetime.now()
