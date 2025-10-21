@@ -10,8 +10,11 @@ usuarios_bp = Blueprint('usuarios', __name__)
 @usuarios_bp.route('/usuario/registrar', methods=['POST'])
 def registrar_usuario():
     dados = request.get_json()
+    nome = dados.get('nome')
     email = dados.get('email')
     senha = dados.get('senha')
+    posicao = dados.get('posicao')
+
 
     if not email or not senha:
         return jsonify({'erro': 'Email e senha são obrigatórios'}), 400
@@ -22,8 +25,10 @@ def registrar_usuario():
     senha_hash = bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt())
 
     usuarios_collection.insert_one({
+        'nome': nome,
         'email': email,
-        'senha_hash': senha_hash
+        'senha_hash': senha_hash,
+        'posicao': posicao
     })
 
     return jsonify({'mensagem': 'Usuário registrado com sucesso!'}), 201
